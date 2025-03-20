@@ -129,9 +129,9 @@ if __name__ == '__main__':
 
     vec = encode_pdf(
         './data_test/Guion P1a LocalGreedy QKP MHs 2023-24.pdf', embedder, args)
-    retri = vec.as_retriever({'k': args.top_k,
-                              'fetch_k': args.fetch_k,
-                              })
+    retri = vec.as_retriever(search_kwargs={'k': args.top_k,
+                                            'fetch_k': args.fetch_k,
+                                            })
 
     promt = input('Pregunta algo: ')
 
