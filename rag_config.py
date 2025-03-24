@@ -13,3 +13,4 @@ class RAGArgs:
     fetch_k: int = 5
     stream: bool = False
     seed: int = 42
+    rag_type: str = 'naive'
