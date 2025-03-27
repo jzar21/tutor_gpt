@@ -1,5 +1,6 @@
 {
-    "model": "llama3.2",
-    "model_embbedding": "llama3.2",
-    "url": "http://localhost:11434"
+    "model": "deepseek-r1:32b",
+    "model_embbedding": "deepseek-r1:32b",
+    "url": "http://localhost:11434",
+    "open_ai_api": true
 }

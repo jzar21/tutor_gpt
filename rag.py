@@ -11,7 +11,7 @@ from llm import *
 
 
 class Rag(ABC):
-    def __init__(self, args: RAGArgs, embbedder: Embeddings, llm: LLM):
+    def __init__(self, args: RAGArgs, embbedder: AbstractEmbedder, llm: AbstractLLM):
         super().__init__()
         self.args = args
         self.embbedder = embbedder
@@ -97,5 +97,20 @@ class NaiveRag(Rag):
         relevant_docs = self.retrieve(prompt)
         context = "".join([doc.page_content for doc in relevant_docs])
         new_promt = f"<contexto> {context} <contexto> {prompt}"
+        retrieved_metadata = self.__get_full_metadata(relevant_docs)
 
-        return self.llm.ask(new_promt)
+        return self.llm.ask(new_promt), retrieved_metadata
+
+    def __get_full_metadata(self, relevant_docs: list):
+        if len(relevant_docs) <= 0:
+            raise ValueError('No relevant doc found')
+
+        retrieved_metadata = {}
+        for k, _ in relevant_docs[0].metadata.items():
+            retrieved_metadata[k] = []
+
+        for doc in relevant_docs:
+            for k, v in doc.metadata.items():
+                retrieved_metadata[k].append(v)
+
+        return retrieved_metadata

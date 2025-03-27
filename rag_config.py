@@ -14,3 +14,4 @@ class RAGArgs:
     stream: bool = False
     seed: int = 42
     rag_type: str = 'naive'
+    open_ai_api: bool = False
