@@ -67,7 +67,7 @@ class OllamaEmbedder(AbstractEmbedder):
         return self.create_embedding(query)
 
     def create_embedding(self, text: str):
-        url = f'{self.args.url}/api/embed'
+        url = f'{self.args.url_embed}/api/embed'
 
         data = {
             "model": self.args.model_embbedding,
@@ -120,7 +120,7 @@ class OpenAIEmbedder(AbstractEmbedder):
         return self.create_embedding(query)
 
     def create_embedding(self, text: str):
-        url = f'{self.args.url}/v1/embeddings'
+        url = f'{self.args.url_embed}/v1/embeddings'
 
         data = {
             "model": self.args.model_embbedding,

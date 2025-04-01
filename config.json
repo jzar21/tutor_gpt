@@ -1,6 +1,15 @@
 {
-    "model": "deepseek-r1:32b",
-    "model_embbedding": "deepseek-r1:32b",
+    "model": "llama3.2",
+    "model_embbedding": "llama3.2",
     "url": "http://localhost:11434",
+    "url_embed": "http://localhost:11434",
+    "chunk_size": 1000,
+    "chunk_overlap": 100,
+    "temperature": 0,
+    "top_k": 5,
+    "fetch_k": 5,
+    "stream": false,
+    "seed": 42,
+    "rag_type": "naive",
     "open_ai_api": true
 }

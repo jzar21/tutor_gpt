@@ -6,6 +6,7 @@ class RAGArgs:
     model: str = 'llama3.2'
     model_embbedding: str = 'llama3.2'
     url: str = 'http://localhost:11434'
+    url_embed: str = 'http://localhost:11434'
     chunk_size: int = 1000
     chunk_overlap: int = 100
     temperature: float = 0
