@@ -5,9 +5,9 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings.base import Embeddings
 from rag_config import RAGArgs
 from llm import *
+import os
 
 
 class Rag(ABC):
@@ -30,7 +30,18 @@ class Rag(ABC):
     def embed(self, text: str) -> np.ndarray:
         return np.array(self.embbedder.embed_query(text), dtype=np.float32)
 
-    def store_pdf(self, path: str) -> FAISS:
+    def store_pdf(self, path: str) -> tuple[FAISS, bool]:
+        store_folder = os.path.expanduser(
+            f"~/rag_embed/{self.args.model_embbedding}")
+        file_name = path.split('/')[-1].split('.pdf')[0]
+        if os.path.exists(store_folder + '/' + file_name + '.faiss'):
+            self.vectorstore = FAISS.load_local(
+                store_folder, self.embbedder, index_name=file_name, allow_dangerous_deserialization=True)
+            self.retriever = self.vectorstore.as_retriever(search_kwargs={'k': self.args.top_k,
+                                                                          'fetch_k': self.args.fetch_k,
+                                                                          })
+            return self.vectorstore, True
+
         loader = PyPDFLoader(path)
         documents = loader.load()
 
@@ -77,7 +88,8 @@ class Rag(ABC):
                                                                  'fetch_k': self.args.fetch_k,
                                                                  })
 
-        return self.vector_store
+        self.vector_store.save_local(store_folder, index_name=file_name)
+        return self.vector_store, False
 
     def embed(self, text: str) -> np.ndarray:
         return np.array(self.embbedder.embed_query(text), dtype=np.float32)

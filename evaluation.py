@@ -70,7 +70,7 @@ def mean_reciprocal_rank(retrieved_docs: dict, ground_truth: dict) -> float:
 
             total_queries += 1
 
-    if total_queries == 0:
+    if np.isclose(0, total_queries):
         return 0.0
 
     mrr = mrr_sum / total_queries
@@ -103,9 +103,9 @@ if __name__ == '__main__':
     }
 
     ground_truth = {
-        "1": [3, 2, 5],      # Document 1 has relevant pages 2 and 5
+        "1": [3, 2, 5],   # Document 1 has relevant pages 2 and 5
         "2": [1, 4],      # Document 2 has relevant pages 1 and 4
-        "3": [3, 2, 4]       # Document 3 has relevant pages 3 and 4
+        "3": [3, 2, 4]    # Document 3 has relevant pages 3 and 4
     }
 
     precision = precision_k(retrieved_docs, ground_truth)
