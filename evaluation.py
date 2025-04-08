@@ -47,6 +47,10 @@ def recall_k(retrieved_docs: dict, ground_truth: dict) -> float:
 def f1_score_k(retrieved_docs: dict, ground_truth: dict) -> float:
     precision = precision_k(retrieved_docs, ground_truth)
     recall = recall_k(retrieved_docs, ground_truth)
+
+    if np.isclose(0, precision + recall):
+        return 0
+
     f1_score = 2 * precision * recall / (precision + recall)
 
     return f1_score

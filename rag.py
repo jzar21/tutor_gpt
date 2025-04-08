@@ -30,17 +30,42 @@ class Rag(ABC):
     def embed(self, text: str) -> np.ndarray:
         return np.array(self.embbedder.embed_query(text), dtype=np.float32)
 
-    def store_pdf(self, path: str) -> tuple[FAISS, bool]:
+    def __load_vecstore(self, store_folder, file_name):
+        self.vector_store = FAISS.load_local(
+            store_folder,
+            self.embbedder,
+            index_name=file_name,
+            allow_dangerous_deserialization=True
+        )
+
+        self.retriever = self.vector_store.as_retriever(
+            search_kwargs={'k': self.args.top_k, 'fetch_k': self.args.fetch_k}
+        )
+
+    def __add_docs(self, store_folder, file_name):
+        raise ValueError('Cannot append more files')
+
+    def __is_cached(self, path):
         store_folder = os.path.expanduser(
-            f"~/rag_embed/{self.args.model_embbedding}")
+            f"~/rag_embed/{self.args.model_embbedding}"
+        )
         file_name = path.split('/')[-1].split('.pdf')[0]
+
         if os.path.exists(store_folder + '/' + file_name + '.faiss'):
-            self.vectorstore = FAISS.load_local(
-                store_folder, self.embbedder, index_name=file_name, allow_dangerous_deserialization=True)
-            self.retriever = self.vectorstore.as_retriever(search_kwargs={'k': self.args.top_k,
-                                                                          'fetch_k': self.args.fetch_k,
-                                                                          })
-            return self.vectorstore, True
+            if self.vector_store is None:
+                self.__load_vecstore(store_folder, file_name)
+            else:
+                self.__add_docs(store_folder, file_name)
+
+            return self.vector_store, True
+
+        return None, False
+
+    def store_pdf(self, path: str) -> tuple[FAISS, bool]:
+        _, cached = self.__is_cached(path)
+
+        if cached:
+            return self.vector_store, True
 
         loader = PyPDFLoader(path)
         documents = loader.load()
@@ -78,11 +103,15 @@ class Rag(ABC):
             index_to_docstore_id=index_to_docstore_id
         )
 
+        store_folder = os.path.expanduser(
+            f"~/rag_embed/{self.args.model_embbedding}"
+        )
+        file_name = path.split('/')[-1].split('.pdf')[0]
+
         if self.vector_store is None:
             self.vector_store = vectorstore
         else:
-            raise ValueError(
-                'Vectorstore already exists, currently no additions supported')
+            self.__add_docs(store_folder, file_name)
 
         self.retriever = vectorstore.as_retriever(search_kwargs={'k': self.args.top_k,
                                                                  'fetch_k': self.args.fetch_k,
