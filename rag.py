@@ -8,16 +8,19 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from rag_config import RAGArgs
 from llm import *
 import os
+import hashlib
 
 
 class Rag(ABC):
+    CACHED_PATH = "~/.cache/tutor_gpt/embedings"
+
     def __init__(self, args: RAGArgs, embbedder: AbstractEmbedder, llm: AbstractLLM):
         super().__init__()
         self.args = args
         self.embbedder = embbedder
         self.llm = llm
         self.retriever = None
-        self.vector_store = None
+        self.vector_db = None
 
     @abstractmethod
     def retrieve(self, prompt: str) -> str:
@@ -30,95 +33,73 @@ class Rag(ABC):
     def embed(self, text: str) -> np.ndarray:
         return np.array(self.embbedder.embed_query(text), dtype=np.float32)
 
-    def __load_vecstore(self, store_folder, file_name):
-        self.vector_store = FAISS.load_local(
-            store_folder,
-            self.embbedder,
-            index_name=file_name,
-            allow_dangerous_deserialization=True
-        )
-
-        self.retriever = self.vector_store.as_retriever(
-            search_kwargs={'k': self.args.top_k, 'fetch_k': self.args.fetch_k}
-        )
-
-    def __add_docs(self, store_folder, file_name):
-        raise ValueError('Cannot append more files')
-
-    def __is_cached(self, path):
+    def _is_cached(self, paths: list[str]) -> bool:
+        full_name = "".join([path for path in paths])
         store_folder = os.path.expanduser(
-            f"~/rag_embed/{self.args.model_embbedding}"
+            f"{Rag.CACHED_PATH}/{self.args.model_embbedding}"
         )
-        file_name = path.split('/')[-1].split('.pdf')[0]
+        full_name += f"{self.args.chunk_size}-{self.args.chunk_overlap}"
+        hash_name = hashlib.md5(full_name.encode('utf-8')).hexdigest()
+        is_cached = os.path.exists(
+            store_folder + '/' + hash_name + '.faiss'
+        )
 
-        if os.path.exists(store_folder + '/' + file_name + '.faiss'):
-            if self.vector_store is None:
-                self.__load_vecstore(store_folder, file_name)
-            else:
-                self.__add_docs(store_folder, file_name)
+        if is_cached:
+            self.vector_db = FAISS.load_local(
+                store_folder,
+                self.embbedder,
+                index_name=hash_name,
+                allow_dangerous_deserialization=True
+            )
+            self.retriever = self.vector_db.as_retriever(
+                search_tipe="mmr",
+                search_kwargs={'k': self.args.top_k,
+                               'fetch_k': self.args.fetch_k}
+            )
 
-            return self.vector_store, True
+            return True
 
-        return None, False
+        return False
 
-    def store_pdf(self, path: str) -> tuple[FAISS, bool]:
-        _, cached = self.__is_cached(path)
+    def store_pdfs(self, paths: list[str]) -> tuple[FAISS, bool]:
+        if self._is_cached(paths):
+            return self.vector_db, True
 
-        if cached:
-            return self.vector_store, True
-
-        loader = PyPDFLoader(path)
-        documents = loader.load()
+        docs = []
+        for path in paths:
+            loader = PyPDFLoader(path)
+            docs.extend(loader.load())
 
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.args.chunk_size,
             chunk_overlap=self.args.chunk_overlap,
             length_function=len
         )
-        texts = text_splitter.split_documents(documents)
 
-        embeddings_list = []
-        for text in texts:
-            embedding = self.embbedder.embed_query(text.page_content)
-            embeddings_list.append(embedding)
+        docs = text_splitter.split_documents(docs)
 
-        embeddings_array = np.vstack(embeddings_list).astype(np.float32)
-
-        dim = embeddings_array.shape[1]
-        faiss_index = faiss.IndexFlatL2(dim)
-
-        faiss_index.add(embeddings_array)
-
-        docstore = InMemoryDocstore()
-
-        index_to_docstore_id = [str(i) for i in range(len(texts))]
-        doc_dict = {index_to_docstore_id[i]: texts[i]
-                    for i in range(len(texts))}
-        docstore.add(doc_dict)
-
-        vectorstore = FAISS(
-            embedding_function=self.embbedder,
-            index=faiss_index,
-            docstore=docstore,
-            index_to_docstore_id=index_to_docstore_id
+        self.vector_db = FAISS.from_documents(docs, self.embbedder)
+        self.retriever = self.vector_db.as_retriever(
+            search_tipe="mmr",
+            search_kwargs={'k': self.args.top_k,
+                           'fetch_k': self.args.fetch_k}
         )
 
+        self._store_embeading(paths)
+
+        return self.vector_db, False
+
+    def _store_embeading(self, paths: list[str]):
+        full_name = "".join([path for path in paths])
+        full_name += f"{self.args.chunk_size}-{self.args.chunk_overlap}"
         store_folder = os.path.expanduser(
-            f"~/rag_embed/{self.args.model_embbedding}"
+            f"{Rag.CACHED_PATH}/{self.args.model_embbedding}"
         )
-        file_name = path.split('/')[-1].split('.pdf')[0]
-
-        if self.vector_store is None:
-            self.vector_store = vectorstore
-        else:
-            self.__add_docs(store_folder, file_name)
-
-        self.retriever = vectorstore.as_retriever(search_kwargs={'k': self.args.top_k,
-                                                                 'fetch_k': self.args.fetch_k,
-                                                                 })
-
-        self.vector_store.save_local(store_folder, index_name=file_name)
-        return self.vector_store, False
+        hash_name = hashlib.md5(full_name.encode('utf-8')).hexdigest()
+        self.vector_db.save_local(
+            folder_path=store_folder,
+            index_name=hash_name
+        )
 
     def embed(self, text: str) -> np.ndarray:
         return np.array(self.embbedder.embed_query(text), dtype=np.float32)
@@ -131,15 +112,23 @@ class NaiveRag(Rag):
     def retrieve(self, prompt: str) -> str:
         if self.retriever is None:
             raise ValueError(
-                'Retriever is None, need to load some information in order to use the retriever')
+                'Retriever is None, need to load some information in order to use the retriever'
+            )
+
         return self.retriever.invoke(prompt)
 
     def ask_llm(self, prompt: str) -> str:
         relevant_docs = self.retrieve(prompt)
         context = "".join([doc.page_content for doc in relevant_docs])
-        new_promt = f"<contexto> {context} <contexto> {prompt}"
-        retrieved_metadata = self.__get_full_metadata(relevant_docs)
+        new_promt = f"""
+        You are an usefull profesor assistant, you need to answer the questions with the following context.
+        <context>
+        {context}
+        <context>
+        Answer the following question. If you don't know the answer, please tell that you don't know and
+        response in the same lenguage as the question: {prompt}"""
 
+        retrieved_metadata = self.__get_full_metadata(relevant_docs)
         return self.llm.ask(new_promt), retrieved_metadata
 
     def __get_full_metadata(self, relevant_docs: list):

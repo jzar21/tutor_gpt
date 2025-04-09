@@ -139,7 +139,7 @@ def main(args):
     df_times['pdf_path'] = pdf_path
 
     init = time.time()
-    _, pdf_cached = rag_sys.store_pdf(pdf_path)
+    _, pdf_cached = rag_sys.store_pdfs([pdf_path])
     end = time.time()
 
     if not pdf_cached:
