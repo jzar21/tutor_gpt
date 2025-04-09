@@ -141,7 +141,6 @@ def main(args, cmd_args):
 
     num_pages, num_words = get_num_pages_words(cmd_args.pdfs)
     df_times = create_df(args, num_pages, num_words)
-    print(cmd_args.pdfs)
     df_times['pdf_path'] = "".join([path for path in cmd_args.pdfs])
 
     init = time.time()
