@@ -7,18 +7,25 @@ from langchain_community.document_loaders import PyPDFLoader
 import time
 from evaluation import *
 import ast
+import argparse
 
 
 def get_num_pages_words(pdf_path):
-    loader = PyPDFLoader(pdf_path)
-    documents = loader.load()
-    num_pages = len(documents)
-    num_words = 0
-    for doc in documents:
-        num_words += len(doc.page_content.replace('\n',
-                         ' ').split(' '))
+    total_pages = 0
+    total_words = 0
+    for pdf in pdf_path:
+        loader = PyPDFLoader(pdf)
+        documents = loader.load()
+        num_pages = len(documents)
+        num_words = 0
+        for doc in documents:
+            num_words += len(doc.page_content.replace('\n',
+                                                      ' ').split(' '))
 
-    return num_pages, num_words
+        total_pages += num_pages
+        total_words += num_words
+
+    return total_pages, total_words
 
 
 def create_df(args: RAGArgs, num_pages: int, num_words: int):
@@ -116,7 +123,7 @@ def batch_eval(rag: Rag, df_times: pd.DataFrame, df_labels: pd.DataFrame):
     df_times.to_csv('./data_test/datos_tiempos_ollama.csv', index=False)
 
 
-def main(args):
+def main(args, cmd_args):
     embedder = None
     llm = None
     if args.open_ai_api:
@@ -132,14 +139,13 @@ def main(args):
     else:
         raise ValueError('RAG type unknown')
 
-    # pdf_path = './data_test/Guion P1a LocalGreedy QKP MHs 2023-24.pdf'
-    pdf_path = './data_test/Presentación_P1.pdf'
-    num_pages, num_words = get_num_pages_words(pdf_path)
+    num_pages, num_words = get_num_pages_words(cmd_args.pdfs)
     df_times = create_df(args, num_pages, num_words)
-    df_times['pdf_path'] = pdf_path
+    print(cmd_args.pdfs)
+    df_times['pdf_path'] = "".join([path for path in cmd_args.pdfs])
 
     init = time.time()
-    _, pdf_cached = rag_sys.store_pdfs([pdf_path])
+    _, pdf_cached = rag_sys.store_pdfs(cmd_args.pdfs)
     end = time.time()
 
     if not pdf_cached:
@@ -149,20 +155,43 @@ def main(args):
     df_times['promt_len'] = np.nan
     df_times['response_len'] = np.nan
 
-    if not True:  # interactive
+    if cmd_args.interactive:
         interactive_session(rag_sys, df_times)
     else:
-        # df_labels = pd.read_csv('./data_test/preguntas_mh.csv')
-        df_labels = pd.read_csv('./data_test/preguntas_vc.csv')
+        df_labels = pd.read_csv(cmd_args.batch_questions)
         batch_eval(rag_sys, df_times, df_labels)
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print('Error: config.json file needed', file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--config_path',
+        type=str,
+        help='config file path',
+        required=True
+    )
+    parser.add_argument(
+        '--interactive',
+        type=bool,
+        help='Interactive chat',
+        default=True
+    )
+    parser.add_argument(
+        '--pdfs',
+        type=str,
+        help='PDFs to use as KB',
+        required=True,
+        nargs='+'
+    )
+    parser.add_argument(
+        '--batch_questions',
+        type=str,
+        help='CVS with the questions and answers. Only used is Interactive is False',
+        required=False,
+    )
+    cmd_args = parser.parse_args()
 
-    with open(sys.argv[1], 'r') as f:
+    with open(cmd_args.config_path, 'r') as f:
         data = json.load(f)
 
     args = RAGArgs(**data)
@@ -171,4 +200,4 @@ if __name__ == '__main__':
         print(f'{key}: {val}')
     print('-' * 80)
 
-    main(args)
+    main(args, cmd_args)
