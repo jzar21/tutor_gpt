@@ -10,6 +10,15 @@ import ast
 import argparse
 
 
+def str2bool(value):
+    if value.lower() in ['true', '1', 't', 'y', 'yes']:
+        return True
+    elif value.lower() in ['false', '0', 'f', 'n', 'no']:
+        return False
+    else:
+        raise ValueError('Valor no válido para un booleano')
+
+
 def get_num_pages_words(pdf_path):
     total_pages = 0
     total_words = 0
@@ -171,9 +180,9 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--interactive',
-        type=bool,
+        type=str2bool,
         help='Interactive chat',
-        default=True
+        default=False
     )
     parser.add_argument(
         '--pdfs',
