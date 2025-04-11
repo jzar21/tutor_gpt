@@ -61,7 +61,7 @@ class Rag(ABC):
 
         return False
 
-    def store_pdfs(self, paths: list[str]) -> tuple[FAISS, bool]:
+    def store_pdfs(self, paths: list[str], save: bool = True) -> tuple[FAISS, bool]:
         if self._is_cached(paths):
             return self.vector_db, True
 
@@ -85,7 +85,8 @@ class Rag(ABC):
                            'fetch_k': self.args.fetch_k}
         )
 
-        self._store_embeading(paths)
+        if save:
+            self._store_embeading(paths)
 
         return self.vector_db, False
 
@@ -101,8 +102,30 @@ class Rag(ABC):
             index_name=hash_name
         )
 
-    def embed(self, text: str) -> np.ndarray:
-        return np.array(self.embbedder.embed_query(text), dtype=np.float32)
+    def store_string(self, texts: list[str], save: bool = True) -> tuple[FAISS, bool]:
+        if self._is_cached(texts):
+            return self.vector_db, True
+
+        full_text = "".join([text for text in texts])
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.args.chunk_size,
+            chunk_overlap=self.args.chunk_overlap,
+            length_function=len
+        )
+
+        docs = text_splitter.split_text(full_text)
+
+        self.vector_db = FAISS.from_texts(docs, self.embbedder)
+        self.retriever = self.vector_db.as_retriever(
+            search_tipe="mmr",
+            search_kwargs={'k': self.args.top_k,
+                           'fetch_k': self.args.fetch_k}
+        )
+
+        if save:
+            self._store_embeading(texts)
+
+        return self.vector_db, False
 
 
 class NaiveRag(Rag):
@@ -126,7 +149,7 @@ class NaiveRag(Rag):
         {context}
         <context>
         Answer the following question. If you don't know the answer, please tell that you don't know and
-        response in the same lenguage as the question: {prompt}"""
+        response in the same lenguage as the question and give a brief and precise answer: {prompt}"""
 
         retrieved_metadata = self.__get_full_metadata(relevant_docs)
         return self.llm.ask(new_promt), retrieved_metadata
