@@ -71,9 +71,9 @@ def interactive_session(rag: Rag, df_times: pd.DataFrame):
         print('-' * 80)
         prompt = input('Ask something: ')
 
-    df_csv = pd.read_csv('./data_test/datos_tiempos_vllm.csv')
+    df_csv = pd.read_csv('./data_test/datos_tiempos_ollama.csv')
     df_times = pd.concat([df_csv, df_times], ignore_index=True)
-    df_times.to_csv('./data_test/datos_tiempos_vllm.csv', index=False)
+    df_times.to_csv('./data_test/datos_tiempos_ollama.csv', index=False)
 
 
 def batch_eval(rag: Rag, df_times: pd.DataFrame, df_labels: pd.DataFrame):
@@ -140,7 +140,10 @@ def main(args, cmd_args):
         llm = OpenAILLM(args)
     else:
         embedder = OllamaEmbedder(args)
-        llm = OllamaLLM(args)
+        # llm = OllamaLLM(args)
+
+        # embedder = GeminiEmbedder(args)
+        llm = GeminiLLM(args)
 
     rag_sys = None
     if args.rag_type == 'naive':
