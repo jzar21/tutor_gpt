@@ -23,16 +23,17 @@ def get_num_pages_words(pdf_path):
     total_pages = 0
     total_words = 0
     for pdf in pdf_path:
-        loader = PyPDFLoader(pdf)
-        documents = loader.load()
-        num_pages = len(documents)
-        num_words = 0
-        for doc in documents:
-            num_words += len(doc.page_content.replace('\n',
-                                                      ' ').split(' '))
+        if pdf.endswith('pdf'):
+            loader = PyPDFLoader(pdf)
+            documents = loader.load()
+            num_pages = len(documents)
+            num_words = 0
+            for doc in documents:
+                num_words += len(doc.page_content.replace('\n',
+                                                          ' ').split(' '))
 
-        total_pages += num_pages
-        total_words += num_words
+            total_pages += num_pages
+            total_words += num_words
 
     return total_pages, total_words
 
@@ -139,11 +140,13 @@ def main(args, cmd_args):
         embedder = OpenAIEmbedder(args)
         llm = OpenAILLM(args)
     else:
-        embedder = OllamaEmbedder(args)
-        # llm = OllamaLLM(args)
-
-        # embedder = GeminiEmbedder(args)
-        llm = GeminiLLM(args)
+        if 'gemini' in args.model:
+            llm = GeminiLLM(args)
+            embedder = OllamaEmbedder(args)
+            # embedder = GeminiEmbedder(args)
+        else:
+            embedder = OllamaEmbedder(args)
+            llm = OllamaLLM(args)
 
     rag_sys = None
     if args.rag_type == 'naive':
@@ -151,12 +154,12 @@ def main(args, cmd_args):
     else:
         raise ValueError('RAG type unknown')
 
-    num_pages, num_words = get_num_pages_words(cmd_args.pdfs)
+    num_pages, num_words = get_num_pages_words(cmd_args.files)
     df_times = create_df(args, num_pages, num_words)
-    df_times['pdf_path'] = "".join([path for path in cmd_args.pdfs])
+    df_times['pdf_path'] = "".join([path for path in cmd_args.files])
 
     init = time.time()
-    _, pdf_cached = rag_sys.store_pdfs(cmd_args.pdfs)
+    _, pdf_cached = rag_sys.store_docs(cmd_args.files)
     end = time.time()
 
     if not pdf_cached:
@@ -188,9 +191,9 @@ if __name__ == '__main__':
         default=False
     )
     parser.add_argument(
-        '--pdfs',
+        '--files',
         type=str,
-        help='PDFs to use as KB',
+        help='Files to use as Knowledge DB',
         required=True,
         nargs='+'
     )

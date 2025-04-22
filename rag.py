@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
-import faiss
 from langchain_community.vectorstores import FAISS
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain_core.documents import Document
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from rag_config import RAGArgs
 from llm import *
@@ -60,6 +59,47 @@ class Rag(ABC):
             return True
 
         return False
+
+    def get_lists_docs(self, paths: list[str]) -> list[Document]:
+        docs = []
+
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.args.chunk_size,
+            chunk_overlap=self.args.chunk_overlap,
+            length_function=len
+        )
+        for file in paths:
+            if file.endswith('.pdf'):
+                docs.extend(
+                    text_splitter.split_documents(
+                        PyPDFLoader(file).load()
+                    )
+                )
+            if file.endswith('.txt') or file.endswith('.md'):
+                docs.extend(
+                    text_splitter.split_documents(
+                        TextLoader(file).load()
+                    )
+                )
+        return docs
+
+    def store_docs(self, paths: list[str], save: bool = True) -> tuple[FAISS, bool]:
+        if self._is_cached(paths):
+            return self.vector_db, True
+
+        docs = self.get_lists_docs(paths)
+
+        self.vector_db = FAISS.from_documents(docs, self.embbedder)
+        self.retriever = self.vector_db.as_retriever(
+            search_tipe=self.args.rag_search_tipe,
+            search_kwargs={'k': self.args.top_k,
+                           'fetch_k': self.args.fetch_k}
+        )
+
+        if save:
+            self._store_embeading(paths)
+
+        return self.vector_db, False
 
     def store_pdfs(self, paths: list[str], save: bool = True) -> tuple[FAISS, bool]:
         if self._is_cached(paths):
@@ -164,6 +204,9 @@ class NaiveRag(Rag):
 
         for doc in relevant_docs:
             for k, v in doc.metadata.items():
-                retrieved_metadata[k].append(v)
+                try:
+                    retrieved_metadata[k].append(v)
+                except:
+                    retrieved_metadata[k] = [v]
 
         return retrieved_metadata
