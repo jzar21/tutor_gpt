@@ -15,20 +15,27 @@
 #      -H "Content-Type: application/json" \
 #      -d '{"model": "llama3.2"}'
 
-# curl http://localhost:5001/api/tags
-
-curl -X POST http://localhost:5001/api/chat \
+curl http://localhost:5001/api/embed \
      -H "Content-Type: application/json" \
      -d '{
-        "model": "llama3.2",
-        "stream" : false,
-        "messages": [
-            {
-            "role": "user",
-            "content": "When is the deadline?, Give only the date."
-            }
-        ]
-    }' | jq
+    "model": "llama3.2",
+    "input": "Why is the sky blue?"
+    }'
+
+# curl http://localhost:5001/api/tags
+
+# curl -X POST http://localhost:5001/api/chat \
+#      -H "Content-Type: application/json" \
+#      -d '{
+#         "model": "llama3.2",
+#         "stream" : false,
+#         "messages": [
+#             {
+#             "role": "user",
+#             "content": "When is the deadline?, Give only the date."
+#             }
+#         ]
+#     }' | jq
 
 # curl http://localhost:11434/api/tags
 

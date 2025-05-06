@@ -178,3 +178,4 @@ notebooks/
 custom_configs/
 *.ipynb
 datasets/
+test.sh

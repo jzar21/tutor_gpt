@@ -192,6 +192,8 @@ async def call_ollama_chat(request: WrapperChatRequest):
     prompt_eval_duration = metadata.get("prompt_eval_duration", 0.0)
     eval_duration = metadata.get("eval_duration", 0.0)
 
+    print(f'Response: {response}')
+
     return {
         "model": request.model,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.%fZ", time.gmtime()),
@@ -215,6 +217,37 @@ async def chat_endpoint(request: WrapperChatRequest):
     """
     ollama_response = await call_ollama_chat(request)
     return WrapperChatResponse(**ollama_response)
+
+
+class WrapperEmbedRequest(BaseModel):
+    model: str
+    input: List[str] | str
+    truncate: Optional[bool] = True
+    keep_alive: Optional[str] = '5m'
+
+
+class WrapperEmbedResponse(BaseModel):
+    model: str
+    embeddings: List[float] | List[List[List[float]]] | List[List[float]]
+    total_duration: int
+    load_duration: int
+    prompt_eval_count: int
+
+
+@app.post("/api/embed")
+async def generate_embed(request: WrapperEmbedRequest):
+    start_time = time.time()
+    response = app.state.rag_system.embed(request.input[0])
+    end_time = time.time()
+    total_duration = int((end_time - start_time) * 10**6)
+
+    return WrapperEmbedResponse(**{
+        "model": request.model,
+        "embeddings": [response],
+        "total_duration": total_duration,
+        "load_duration": 0.0,  # Placeholde
+        "prompt_eval_count": 0,
+    })
 
 
 if __name__ == '__main__':
