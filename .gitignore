@@ -178,3 +178,4 @@ notebooks/
 custom_configs/
 *.ipynb
 datasets/
+.webui_secret_key
