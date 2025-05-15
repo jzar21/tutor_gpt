@@ -102,7 +102,7 @@ Para la ejecución como un chat LLM, se debe pasar las siguientes opciones:
 
 - `--config_path`: Path al archivo de configuración.
 - `--files`: Lista de los archivos a usar como base de conocimiento. Se soporta archivos .pdf, .md y .txt.
-- `interactive true`: Activa el modo interactivo.
+- `--interactive true`: Activa el modo interactivo.
 
 Ejemplo:
 
@@ -116,7 +116,7 @@ El programa termina cuando se introduce una cadena vacía.
 
 Desde el archivo `main.py`, se puede ejecutar una opción, la cual, mediante un archivo CSV, se puede realizar una evaluación del sistema RAG.
 
-Para ello, el archivo CSV debe tener los siguientes campos: 
+Para ello, el archivo CSV debe tener los siguientes campos:
 
 - `pregunta`: Pregunta a realizar al sistema.
 - `path`: Path del archivo donde se encuentra la respuesta.
@@ -146,7 +146,7 @@ De esto se encarga el archivo `app.py`. Para ello, se le deben pasar las siguien
 
 - `--config_path`: Path al archivo de configuración.
 - `--files`: Lista de los archivos a usar como base de conocimiento. Se soporta archivos .pdf, .md y .txt.
-- `port`: Puerto donde corre el servidor. Por defecto 5001.
+- `--port`: Puerto donde corre el servidor. Por defecto 5001.
 
 Ejemplo:
 
