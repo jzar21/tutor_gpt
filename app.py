@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 from rag_config import RAGArgs
+import httpx
 from rag import *
 import json
 import argparse
@@ -8,19 +9,7 @@ import time
 from contextlib import asynccontextmanager
 import uvicorn
 import sys
-from typing import Optional, List
-
-
-class QueryRequest(BaseModel):
-    query: str
-    model: str
-
-
-class QueryResponse(BaseModel):
-    response: str
-    prompt_time: float
-    prompt_length: int
-    response_length: int
+from typing import Any, Dict, Optional, List
 
 
 def load_config(config_path: str) -> RAGArgs:
@@ -103,28 +92,161 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.post("/rag_query", response_model=QueryResponse)
-async def rag_query(request: QueryRequest):
-    """Endpoint for querying the RAG system."""
-    user_question = request.query.strip()
+@app.get("/api/version")
+async def get_version():
+    return {
+        "version": "0.5.1"
+    }
 
-    if not user_question:
-        raise HTTPException(
-            status_code=400, detail="Query cannot be empty"
+
+@app.get("/api/ps")
+async def get_models():
+    async with httpx.AsyncClient() as client:
+        response = await client.get("http://localhost:11434/api/ps")
+        return response.json()
+
+
+class WrapperShowInfo(BaseModel):
+    model: str
+    verbose: Optional[bool] = None
+
+
+@app.post("/api/show")
+async def show_info(request: WrapperShowInfo):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:11434/api/show",
+            headers={"Content-Type": "application/json"},
+            content=request.model_dump_json()
         )
+        return response.json()
 
-    app.state.rag_system.llm.args.model = request.model  # TODO: hacer esto mejor
+
+@app.get("/api/tags")  # TODO: Modificar para añadir a gemini :)
+async def get_tags():
+    async with httpx.AsyncClient() as client:
+        response = await client.get("http://localhost:11434/api/tags")
+        return response.json()
+
+
+class WrapperMessage(BaseModel):
+    role: str = Field(...,
+                      description="Role of the message (system, user, assistant, tool)")
+    content: str = Field(None, description="Content of the message")
+    images: Optional[List[str]] = Field(
+        None, description="List of base64-encoded images")
+    tool_calls: Optional[List[Dict[str, Any]]] = Field(
+        None, description="List of tools the model wants to use")
+
+
+class WrapperChatRequest(BaseModel):
+    model: str = Field(..., description="The model name")
+    messages: List[WrapperMessage] = Field(...,
+                                           description="List of chat messages")
+
+    tools: Optional[List[Dict[str, Any]]] = Field(
+        None, description="List of tools in JSON for the model to use")
+
+    format: Optional[str] = Field(
+        None, description="The format to return a response in (json or a JSON schema)")
+
+    options: Optional[Dict[str, Any]] = None
+    stream: Optional[bool] = False
+    keep_alive: Optional[str] = "5m"
+
+
+class WrapperChatResponse(BaseModel):
+    model: str
+    created_at: str
+    message: WrapperMessage
+    done: bool
+    total_duration: Optional[int] = None
+    load_duration: Optional[int] = None
+    prompt_eval_count: Optional[int] = None
+    prompt_eval_duration: Optional[int] = None
+    eval_count: Optional[int] = None
+    eval_duration: Optional[int] = None
+    done_reason: Optional[str] = None
+
+
+async def call_ollama_chat(request: WrapperChatRequest):
+    """Calls your RAG system to generate a chat response."""
+    last_user_message = None
+
+    for message in reversed(request.messages):
+        if message.role == "user":
+            last_user_message = message.content
+            break
+
+    if not last_user_message:
+        raise HTTPException(
+            status_code=400, detail="No user message found in the chat history.")
 
     start_time = time.time()
-    response, _ = app.state.rag_system.ask_llm(user_question)
+    response, metadata = app.state.rag_system.ask_llm(last_user_message)
     end_time = time.time()
+    total_duration = int((end_time - start_time) * 10**6)
 
-    return QueryResponse(
-        response=response.strip(),
-        prompt_time=end_time - start_time,
-        prompt_length=len(user_question.split()),
-        response_length=len(response.split())
-    )
+    prompt_tokens = metadata.get("prompt_tokens", 0)
+    response_tokens = metadata.get("response_tokens", 0)
+    prompt_eval_duration = metadata.get("prompt_eval_duration", 0.0)
+    eval_duration = metadata.get("eval_duration", 0.0)
+
+    return {
+        "model": request.model,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.%fZ", time.gmtime()),
+        "message": {"role": "assistant", "content": response.strip(), "images": None, "tool_calls": None},
+        "done": True,
+        "total_duration": total_duration,
+        "load_duration": 0.0,  # Placeholde
+        "prompt_eval_count": prompt_tokens,
+        "prompt_eval_duration": prompt_eval_duration,
+        "eval_count": response_tokens,
+        "eval_duration": eval_duration,
+        "done_reason": "stop",
+    }
+
+
+@app.post("/api/chat")
+async def chat_endpoint(request: WrapperChatRequest):
+    """
+    Generates the next message in a chat using your RAG system.
+    Currently only supports non-streaming responses.
+    """
+    ollama_response = await call_ollama_chat(request)
+    return WrapperChatResponse(**ollama_response)
+
+
+class WrapperEmbedRequest(BaseModel):
+    model: str
+    input: List[str] | str
+    truncate: Optional[bool] = True
+    keep_alive: Optional[str] = '5m'
+
+
+class WrapperEmbedResponse(BaseModel):
+    model: str
+    embeddings: List[float] | List[List[List[float]]] | List[List[float]]
+    total_duration: int
+    load_duration: int
+    prompt_eval_count: int
+
+
+@app.post("/api/embed")
+async def generate_embed(request: WrapperEmbedRequest):
+    start_time = time.time()
+    response = app.state.rag_system.embed(request.input[0])
+    end_time = time.time()
+    total_duration = int((end_time - start_time) * 10**6)
+
+    return WrapperEmbedResponse(**{
+        "model": request.model,
+        "embeddings": [response],
+        "total_duration": total_duration,
+        "load_duration": 0.0,  # Placeholde
+        "prompt_eval_count": 0,
+    })
+
 
 if __name__ == '__main__':
     import uvicorn
