@@ -192,8 +192,6 @@ async def call_ollama_chat(request: WrapperChatRequest):
     prompt_eval_duration = metadata.get("prompt_eval_duration", 0.0)
     eval_duration = metadata.get("eval_duration", 0.0)
 
-    print(f'Response: {response}')
-
     return {
         "model": request.model,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.%fZ", time.gmtime()),

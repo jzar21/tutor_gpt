@@ -191,7 +191,7 @@ class NaiveRag(Rag):
         Answer the following question. If you don't know the answer, please tell that you don't know and
         response in the same lenguage as the question and give a brief and precise answer: {prompt}"""
 
-        new_promt = prompt  # TODO: Discutir con tutores como procedemos
+        # new_promt = prompt  # TODO: Discutir con tutores como procedemos
 
         retrieved_metadata = self.__get_full_metadata(relevant_docs)
         return self.llm.ask(new_promt), retrieved_metadata
