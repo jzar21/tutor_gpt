@@ -122,11 +122,29 @@ async def show_info(request: WrapperShowInfo):
         return response.json()
 
 
-@app.get("/api/tags")  # TODO: Modificar para añadir a gemini :)
+def add_gemini_models(data: dict):
+    extra_model = {
+        "name": "gemini-1.5-flash:latest",
+        "model": "gemini-1.5-flash:latest",
+        "size": 0,
+        "digest": "manual",
+    }
+
+    if "models" in data:
+        data["models"].append(extra_model)
+    else:
+        data = {"models": [extra_model]}
+
+    return data
+
+
+@app.get("/api/tags")
 async def get_tags():
     async with httpx.AsyncClient() as client:
         response = await client.get("http://localhost:11434/api/tags")
-        return response.json()
+        data = response.json()
+        data = add_gemini_models(data)
+        return data
 
 
 class WrapperMessage(BaseModel):
@@ -169,6 +187,17 @@ class WrapperChatResponse(BaseModel):
     done_reason: Optional[str] = None
 
 
+def setup_diferent_model(request: WrapperChatRequest):
+    if 'gemini' in request.model:
+        request.model = request.model.split(':')[0]
+
+    if request.model != app.state.rag_system.llm.args.model:
+        app.state.rag_system.args.model = request.model
+
+    if 'gemini' in request.model and type(app.state.rag_system.llm) != GeminiLLM:
+        app.state.rag_system.llm = GeminiLLM(app.state.rag_system.args)
+
+
 async def call_ollama_chat(request: WrapperChatRequest):
     """Calls your RAG system to generate a chat response."""
     last_user_message = None
@@ -184,8 +213,7 @@ async def call_ollama_chat(request: WrapperChatRequest):
         raise HTTPException(
             status_code=400, detail="No user message found in the chat history.")
 
-    if request.model != app.state.rag_system.llm.args.model:
-        app.state.rag_system.llm.args.model = request.model
+    setup_diferent_model(request)
 
     start_time = time.time()
     response, metadata = app.state.rag_system.ask_llm(
