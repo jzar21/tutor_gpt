@@ -37,7 +37,7 @@ class OllamaLLM(AbstractLLM):
     def __init__(self, args: RAGArgs):
         super().__init__(args)
 
-    def ask(self, prompt: str) -> str:
+    def ask(self, prompt: str, image=None) -> str:
         url = f'{self.args.url}/api/generate'
 
         data = {
@@ -49,6 +49,9 @@ class OllamaLLM(AbstractLLM):
                 "seed": self.args.seed
             }
         }
+
+        if image != None:
+            data["images"] = image
 
         response = requests.post(url, json=data)
 
@@ -92,7 +95,7 @@ class OpenAILLM(AbstractLLM):
     def __init__(self, args: RAGArgs):
         super().__init__(args)
 
-    def ask(self, prompt: str) -> str:
+    def ask(self, prompt: str, image=None) -> str:
         url = f'{self.args.url}/v1/completions'
 
         data = {
@@ -162,7 +165,7 @@ class GeminiLLM(AbstractLLM):
             raise RuntimeError(
                 f"Failed to initialize Gemini GenerativeModel: {e}")
 
-    def ask(self, prompt: str) -> str:
+    def ask(self, prompt: str, image=None) -> str:
         """
         Sends a prompt to the Gemini model and returns the generated text.
         """

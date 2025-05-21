@@ -172,18 +172,25 @@ class WrapperChatResponse(BaseModel):
 async def call_ollama_chat(request: WrapperChatRequest):
     """Calls your RAG system to generate a chat response."""
     last_user_message = None
+    last_user_image = None
 
     for message in reversed(request.messages):
         if message.role == "user":
             last_user_message = message.content
+            last_user_image = message.images
             break
 
     if not last_user_message:
         raise HTTPException(
             status_code=400, detail="No user message found in the chat history.")
 
+    if request.model != app.state.rag_system.llm.args.model:
+        app.state.rag_system.llm.args.model = request.model
+
     start_time = time.time()
-    response, metadata = app.state.rag_system.ask_llm(last_user_message)
+    response, metadata = app.state.rag_system.ask_llm(
+        last_user_message, last_user_image
+    )
     end_time = time.time()
     total_duration = int((end_time - start_time) * 10**6)
 

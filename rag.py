@@ -180,7 +180,7 @@ class NaiveRag(Rag):
 
         return self.retriever.invoke(prompt)
 
-    def ask_llm(self, prompt: str) -> str:
+    def ask_llm(self, prompt: str, image=None) -> str:
         relevant_docs = self.retrieve(prompt)
         context = "".join([doc.page_content for doc in relevant_docs])
         new_promt = f"""
@@ -191,10 +191,10 @@ class NaiveRag(Rag):
         Answer the following question. If you don't know the answer, please tell that you don't know and
         response in the same lenguage as the question and give a brief and precise answer: {prompt}"""
 
-        # new_promt = prompt  # TODO: Discutir con tutores como procedemos
+        new_promt = prompt  # TODO: Discutir con tutores como procedemos
 
         retrieved_metadata = self.__get_full_metadata(relevant_docs)
-        return self.llm.ask(new_promt), retrieved_metadata
+        return self.llm.ask(new_promt, image), retrieved_metadata
 
     def __get_full_metadata(self, relevant_docs: list):
         if len(relevant_docs) <= 0:
