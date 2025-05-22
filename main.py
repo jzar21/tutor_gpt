@@ -1,7 +1,6 @@
 import pandas as pd
 import json
 from rag_config import RAGArgs
-import sys
 from rag import *
 from langchain_community.document_loaders import PyPDFLoader
 import time
@@ -59,7 +58,7 @@ def interactive_session(rag: Rag, df_times: pd.DataFrame):
 
     while prompt != '':
         init = time.time()
-        response, _ = rag.ask_llm(prompt)
+        response, _ = rag.ask_llm({"text": prompt})
         end = time.time()
 
         response_df['promt_time(s)'] = end - init
@@ -92,7 +91,7 @@ def batch_eval(rag: Rag, df_times: pd.DataFrame, df_labels: pd.DataFrame):
 
     for prompt in df_labels['pregunta']:
         init = time.time()
-        response, metadata = rag.ask_llm(prompt)
+        response, metadata = rag.ask_llm({"text": prompt})
         end = time.time()
 
         sources.append(metadata['source'])

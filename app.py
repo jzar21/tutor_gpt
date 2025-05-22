@@ -25,9 +25,7 @@ def load_config(config_path: str) -> RAGArgs:
         print('-' * 80)
         return args
     except Exception as e:
-        print(
-            f"Error: {e}", file=sys.stderr
-        )
+        print(f"Error: {e}", file=sys.stderr)
         raise
 
 
@@ -200,25 +198,23 @@ def setup_diferent_model(request: WrapperChatRequest):
 
 async def call_ollama_chat(request: WrapperChatRequest):
     """Calls your RAG system to generate a chat response."""
-    last_user_message = None
-    last_user_image = None
+    prompt = {}
 
     for message in reversed(request.messages):
         if message.role == "user":
-            last_user_message = message.content
-            last_user_image = message.images
+            prompt["text"] = message.content
+            if message.images != None:
+                prompt["images"] = message.images
             break
 
-    if not last_user_message:
+    if "text" not in prompt.keys():
         raise HTTPException(
             status_code=400, detail="No user message found in the chat history.")
 
     setup_diferent_model(request)
 
     start_time = time.time()
-    response, metadata = app.state.rag_system.ask_llm(
-        last_user_message, last_user_image
-    )
+    response, metadata = app.state.rag_system.ask_llm(prompt)
     end_time = time.time()
     total_duration = int((end_time - start_time) * 10**6)
 
