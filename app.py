@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
         '--files',
         type=str,
         help='Files to use as Knowledge DB (solo para inicialización)',
-        required=True,
+        required=False,
         nargs='+'
     )
     cmd_args = parser.parse_args()
