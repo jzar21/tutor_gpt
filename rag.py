@@ -193,8 +193,9 @@ class NaiveRag(Rag):
 
         new_promt = prompt.copy()
         # TODO: Discutir con tutores como procedemos
-        new_promt["text"] = new_context  # prompt["text"]
-
+        # new_promt["text"] = prompt["text"]
+        # new_promt["text"] = new_context
+        # print(new_promt)
         retrieved_metadata = self.__get_full_metadata(relevant_docs)
         return self.llm.ask(new_promt), retrieved_metadata
 
