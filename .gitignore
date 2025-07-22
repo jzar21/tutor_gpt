@@ -180,3 +180,7 @@ custom_configs/
 datasets/
 .webui_secret_key
 test.sh
+data/
+all-chats-export-1749751488909.json
+codeviz-diagram-2025-06-07T23-08-48.drawio
+dev-v2.0.json

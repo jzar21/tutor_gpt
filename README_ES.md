@@ -1,3 +1,5 @@
+![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-blue.svg)
+
 # Dependencias
 
 La instalación de este software no requiere de ninguna dependencia extra más alla de Python. No obstante, es recomendable el uso de algún gestor de versiones de Python, como lo es [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) o [venv](https://docs.python.org/3/library/venv.html), para realizar la instalación en un entorno limpio y evitar posibles conflictos.
@@ -161,3 +163,6 @@ En primera instancia, se debe levantar el servidor de [OpenWebUI](https://openwe
 Una vez que se tenga el servidor configurado, para hacer uso del sistema RAG, se debe cambiar la dirección del servidor a usar por la del servidor configurado en los pasos anteriores. Además, de debe cambiar la dirección del servidor de embeddings. Se recomienda usar modelo de embeddings `mxbai-embed-large`.
 
 
+# Licencia
+
+Este proyecto está bajo la licencia Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional. Consulta el archivo [LICENSE](LICENSE) para más detalles.
