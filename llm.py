@@ -5,6 +5,7 @@ import numpy as np
 from rag_config import RAGArgs
 import requests
 import os
+import sys
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 
@@ -15,7 +16,7 @@ class AbstractLLM(ABC):
         self.args = args
 
     @abstractmethod
-    def ask(self, promt: str) -> str:
+    def ask(self, prompt: dict) -> str:
         pass
 
 
@@ -37,18 +38,21 @@ class OllamaLLM(AbstractLLM):
     def __init__(self, args: RAGArgs):
         super().__init__(args)
 
-    def ask(self, prompt: str) -> str:
+    def ask(self, prompt: dict) -> str:
         url = f'{self.args.url}/api/generate'
 
         data = {
             "model": self.args.model,
-            "prompt": prompt,
+            "prompt": prompt.get("text", ""),
             "stream": self.args.stream,
             "options": {
                 "temperature": self.args.temperature,
                 "seed": self.args.seed
             }
         }
+
+        if "images" in prompt.keys():
+            data["images"] = prompt["images"]
 
         response = requests.post(url, json=data)
 
@@ -92,16 +96,19 @@ class OpenAILLM(AbstractLLM):
     def __init__(self, args: RAGArgs):
         super().__init__(args)
 
-    def ask(self, prompt: str) -> str:
+    def ask(self, prompt: dict) -> str:
         url = f'{self.args.url}/v1/completions'
 
         data = {
             "model": self.args.model,
-            "prompt": prompt,
+            "prompt": prompt.get("text", ""),
             "temperature": self.args.temperature,
             "n": 1,  # Number of responses to generate
             "stream": self.args.stream
         }
+
+        if "images" in prompt.keys():  # TODO: check
+            data["images"] = prompt["images"]
 
         response = requests.post(url, json=data)
 
@@ -162,12 +169,15 @@ class GeminiLLM(AbstractLLM):
             raise RuntimeError(
                 f"Failed to initialize Gemini GenerativeModel: {e}")
 
-    def ask(self, prompt: str) -> str:
+    def ask(self, prompt: dict) -> str:
         """
         Sends a prompt to the Gemini model and returns the generated text.
         """
         try:
-            response = self.model.generate_content(prompt)
+            response = self.model.generate_content(prompt.get("text", ""))
+            if "images" in prompt.keys():
+                print("Gemini currently does not support images", file=sys.stderr)
+
             if response.parts:
                 return response.text
             else:
